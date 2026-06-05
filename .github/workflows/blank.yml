@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Speed APK
 
 on:
   push:
@@ -27,11 +27,446 @@ jobs:
         with:
           channel: stable
 
-      - name: Show Flutter version
-        run: flutter --version
-
-      - name: Generate Android platform
+      - name: Create clean Flutter Android project
         run: flutter create --platforms=android --project-name speed_ali_ouici .
+
+      - name: Overwrite pubspec.yaml
+        run: |
+          cat > pubspec.yaml <<'YAML'
+          name: speed_ali_ouici
+          description: Speed running history app for Ali Ouici.
+          publish_to: "none"
+
+          version: 1.0.0+1
+
+          environment:
+            sdk: ">=3.3.0 <4.0.0"
+
+          dependencies:
+            flutter:
+              sdk: flutter
+
+          dev_dependencies:
+            flutter_test:
+              sdk: flutter
+
+          flutter:
+            uses-material-design: true
+          YAML
+
+      - name: Overwrite lib/main.dart
+        run: |
+          mkdir -p lib
+          cat > lib/main.dart <<'DART'
+          import 'dart:math';
+          import 'package:flutter/material.dart';
+
+          void main() {
+            runApp(const SpeedApp());
+          }
+
+          class SpeedApp extends StatelessWidget {
+            const SpeedApp({super.key});
+
+            @override
+            Widget build(BuildContext context) {
+              return MaterialApp(
+                title: 'Speed',
+                debugShowCheckedModeBanner: false,
+                theme: ThemeData(
+                  useMaterial3: true,
+                  colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+                ),
+                home: const SpeedHome(),
+              );
+            }
+          }
+
+          class RunItem {
+            final String date;
+            final String route;
+            final double distance;
+            final int duration;
+            final double speed;
+
+            const RunItem({
+              required this.date,
+              required this.route,
+              required this.distance,
+              required this.duration,
+              required this.speed,
+            });
+          }
+
+          class SpeedHome extends StatefulWidget {
+            const SpeedHome({super.key});
+
+            @override
+            State<SpeedHome> createState() => _SpeedHomeState();
+          }
+
+          class _SpeedHomeState extends State<SpeedHome> {
+            static const String friendEmail = 'ALIOUICI3@gmail.com';
+            static const String friendName = 'ali ouici';
+            static const String city = 'Irkutsk';
+            static const String month = '2026-05';
+            static const double totalDistance = 190.4;
+            static const int runCount = 24;
+            static const double minSpeed = 6.5;
+            static const double maxSpeed = 7.7;
+            static const String adminPin = '2026';
+
+            final TextEditingController emailController =
+                TextEditingController(text: friendEmail);
+            final TextEditingController pinController = TextEditingController();
+
+            bool loggedIn = false;
+            bool adminUnlocked = false;
+            String message = '';
+            late List<RunItem> runs;
+
+            @override
+            void initState() {
+              super.initState();
+              runs = generateRuns();
+            }
+
+            @override
+            void dispose() {
+              emailController.dispose();
+              pinController.dispose();
+              super.dispose();
+            }
+
+            List<RunItem> generateRuns() {
+              final Random random = Random(202605);
+              final List<String> routes = [
+                'Angara Embankment Route',
+                'Kirov Square Loop',
+                '130 Kvartal Loop',
+                'Karl Marx Street Segment',
+                'University Area Route',
+                'Central Irkutsk Hybrid',
+              ];
+
+              final List<double> weights = List<double>.generate(
+                runCount,
+                (int i) => 0.8 + random.nextDouble() * 0.4,
+              );
+
+              final double weightSum =
+                  weights.fold(0.0, (double a, double b) => a + b);
+
+              final List<RunItem> list = [];
+              double usedDistance = 0.0;
+
+              for (int i = 0; i < runCount; i++) {
+                double distance;
+
+                if (i == runCount - 1) {
+                  distance = totalDistance - usedDistance;
+                } else {
+                  distance = totalDistance * weights[i] / weightSum;
+                  distance = double.parse(distance.toStringAsFixed(1));
+                  usedDistance += distance;
+                }
+
+                final double speed = double.parse(
+                  (minSpeed + random.nextDouble() * (maxSpeed - minSpeed))
+                      .toStringAsFixed(1),
+                );
+
+                final int duration = ((distance / speed) * 60).round();
+                final int day = 1 + ((i * 28) / runCount).floor();
+
+                list.add(
+                  RunItem(
+                    date: '$month-${day.toString().padLeft(2, '0')}',
+                    route: routes[i % routes.length],
+                    distance: double.parse(distance.toStringAsFixed(1)),
+                    duration: duration,
+                    speed: speed,
+                  ),
+                );
+              }
+
+              return list;
+            }
+
+            double get averageSpeed {
+              final double sum =
+                  runs.fold(0.0, (double a, RunItem r) => a + r.speed);
+              return sum / runs.length;
+            }
+
+            int get totalDuration {
+              return runs.fold(0, (int a, RunItem r) => a + r.duration);
+            }
+
+            void login() {
+              if (emailController.text.trim().isEmpty) {
+                setState(() {
+                  message = 'Please enter an email.';
+                });
+                return;
+              }
+
+              setState(() {
+                loggedIn = true;
+                message = 'Logged in as ${emailController.text.trim()}';
+              });
+            }
+
+            void unlockAdmin() {
+              if (pinController.text.trim() == adminPin) {
+                setState(() {
+                  adminUnlocked = true;
+                  message = 'Admin unlocked.';
+                });
+              } else {
+                setState(() {
+                  message = 'Wrong PIN.';
+                });
+              }
+            }
+
+            @override
+            Widget build(BuildContext context) {
+              if (!loggedIn) {
+                return Scaffold(
+                  appBar: AppBar(title: const Text('Speed')),
+                  body: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.directions_run,
+                                size: 80,
+                                color: Colors.green,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Speed',
+                                style: TextStyle(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text('Running history for ali ouici'),
+                              const SizedBox(height: 24),
+                              TextField(
+                                controller: emailController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Email',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  onPressed: login,
+                                  child: const Text('Continue'),
+                                ),
+                              ),
+                              if (message.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                Text(message),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return Scaffold(
+                appBar: AppBar(
+                  title: const Text('Speed'),
+                  actions: [
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          loggedIn = false;
+                          message = '';
+                        });
+                      },
+                      icon: const Icon(Icons.logout),
+                    ),
+                  ],
+                ),
+                body: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.person),
+                        ),
+                        title: const Text(friendName),
+                        subtitle: const Text('$friendEmail\n$city'),
+                        isThreeLine: true,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Monthly Summary',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                statBox('Month', month),
+                                statBox('Distance', '${totalDistance.toStringAsFixed(1)} km'),
+                                statBox('Runs', '$runCount'),
+                                statBox('Avg Speed', '${averageSpeed.toStringAsFixed(1)} km/h'),
+                                statBox('Duration', '$totalDuration min'),
+                                statBox('Type', 'Easy Run'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Activity History',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    for (final RunItem run in runs)
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(
+                            Icons.directions_run,
+                            color: Colors.green,
+                          ),
+                          title: Text(run.route),
+                          subtitle: Text(
+                            '${run.date} · ${run.distance.toStringAsFixed(1)} km · ${run.duration} min',
+                          ),
+                          trailing: Text('${run.speed.toStringAsFixed(1)} km/h'),
+                          onTap: () {
+                            showDialog<void>(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: Text(run.route),
+                                  content: Text(
+                                    'Date: ${run.date}\n'
+                                    'City: $city\n'
+                                    'Distance: ${run.distance.toStringAsFixed(1)} km\n'
+                                    'Duration: ${run.duration} min\n'
+                                    'Speed: ${run.speed.toStringAsFixed(1)} km/h\n'
+                                    'Type: Easy Run',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: const Text('Close'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Admin Unlock',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: pinController,
+                              obscureText: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Admin PIN',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                onPressed: unlockAdmin,
+                                child: const Text('Unlock Admin'),
+                              ),
+                            ),
+                            if (adminUnlocked) ...[
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Admin Panel: history is generated for ALIOUICI3@gmail.com.',
+                              ),
+                            ],
+                            if (message.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Text(message),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            Widget statBox(String title, String value) {
+              return Container(
+                width: 150,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.green),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  children: [
+                    Text(title),
+                    const SizedBox(height: 6),
+                    Text(
+                      value,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+          DART
 
       - name: Install dependencies
         run: flutter pub get
@@ -49,7 +484,7 @@ jobs:
           path: Speed.apk
           if-no-files-found: error
 
-      - name: Delete old debug release if exists
+      - name: Delete old release if exists
         run: |
           gh release delete speed-debug --yes || true
           git push origin :refs/tags/speed-debug || true
