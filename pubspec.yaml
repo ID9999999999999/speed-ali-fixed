@@ -1,19 +1,19 @@
-name: speed
-description: A Flutter account-based running history app customized for Ali Ouici, with local storage, Supabase cloud mode, admin generation, and GitHub Actions APK build.
-publish_to: 'none'
+name: speed_ali_ouici
+description: Speed running history app for Ali Ouici.
+publish_to: "none"
+
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: ">=3.3.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  http: ^1.2.2
-  shared_preferences: ^2.3.2
 
 dev_dependencies:
-  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true
